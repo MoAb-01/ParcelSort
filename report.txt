@@ -3,32 +3,37 @@
 1. Simulation Overview
 ------------------------
 Total Ticks Executed: 300
-Number of Parcels Generated: 573
+Total Parcels Generated: 592
+Successfully Enqueued Parcels: 592
 
 2. Parcel Statistics
 ------------------------
-Total Dispatched Parcels: 244
-Total Returned Parcels: 32
-Parcels Still in Queue/BST/Stack: 329
+Total Dispatched Parcels: 226
+Total Returned Parcels: 0
+Parcels Still in Queue/BST/Stack: 366
 
 3. Destination Metrics
 ------------------------
-Istanbul: 51 parcels
-Ankara: 55 parcels
-Izmir: 54 parcels
-Bursa: 51 parcels
-Antalya: 54 parcels
-Most Frequently Targeted Destination: Ankara
+Istanbul: 55 parcels dispatched
+Ankara: 47 parcels dispatched
+Izmir: 42 parcels dispatched
+Bursa: 51 parcels dispatched
+Antalya: 31 parcels dispatched
+Total Dispatched: 226
+Verification: Sum of city dispatches = 226
+Most Frequently Targeted Destination: Istanbul
 
 4. Timing and Delay Metrics
 -----------------------------
-Average Parcel Processing Time: 83.95 ticks
-Parcel With Longest Delay: P042 (238 ticks)
-Parcels Returned More Than Once: 6
+Average Parcel Processing Time: 92.08 ticks
+Parcel With Longest Delay: P0126 (227 ticks)
+Parcels Returned More Than Once: 9
 
 5. Data Structure Statistics
 -----------------------------
-Maximum Queue Size Observed: 3
-Maximum Stack Size Observed: 1
+Maximum Queue Size Observed: 11
+Maximum Stack Size Observed: 2
 Final Height of BST: 3
-Hash Table Load Factor: 0.4895833333333333
+Total Parcels in BST: 372
+BST Balance Check: Balanced
+Hash Table Load Factor: 0.5291666666666667

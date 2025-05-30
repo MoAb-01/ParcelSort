@@ -133,6 +133,7 @@ public class Main {
                 for (Parcel p : newParcels) {
                     boolean added = arrivalBuffer.enqueue(p);
                     if (added) {
+                        ParcelGenerator.incrementSuccessfullyEnqueuedCount();
                         parcelTracker.insert(p.getParcelID(), ParcelTracker.ParcelStatus.IN_QUEUE, p.getArrivalTick(),
                                 p.getDestinationCity(), p.getPriority(), p.getSize());
                         newParcelLog.append(String.format("%s to %s (Priority %d), ", p.getParcelID(), p.getDestinationCity(), p.getPriority()));
@@ -155,28 +156,11 @@ public class Main {
                     logWriter.write("New Parcels: " + newParcelLog + "\n");
                 }
 
-                maxQueueSize = Math.max(maxQueueSize, arrivalBuffer.size());
-                logWriter.write("Queue Size: " + arrivalBuffer.size() + "\n");
-
-                // Show queue state with distribution statistics
-                if (!arrivalBuffer.isEmpty()) {
-                    System.out.println("\n=== Queue State After New Arrivals ===");
-                    arrivalBuffer.visualizeQueue();
+                // Process parcels
+                int parcelsToProcess = Math.min(arrivalBuffer.size(), 2);
+                for (int i = 0; i < parcelsToProcess; i++) {
+                    if (arrivalBuffer.isEmpty()) break;
                     
-                    // Show distribution statistics
-                    System.out.println("\n[Queue Statistics]");
-                    System.out.println("+" + "-".repeat(40) + "+");
-                    System.out.println("| Priority Distribution:                    |");
-                    System.out.printf("| High: %-3d | Medium: %-3d | Low: %-3d |\n",
-                        highPriorityCount, mediumPriorityCount, lowPriorityCount);
-                    System.out.println("| Size Distribution:                        |");
-                    System.out.printf("| Small: %-3d | Medium: %-3d | Large: %-3d |\n",
-                        smallSizeCount, mediumSizeCount, largeSizeCount);
-                    System.out.println("+" + "-".repeat(40) + "+");
-                }
-
-                // Kuyruktan BST'ye aktar
-                while (!arrivalBuffer.isEmpty()) {
                     Parcel p = arrivalBuffer.dequeue();
                     destinationSorter.insertParcel(p);
                     parcelTracker.updateStatus(p.getParcelID(), ParcelTracker.ParcelStatus.SORTED);
@@ -197,6 +181,27 @@ public class Main {
                     logWriter.write("Sorted to BST: " + sortedLog + "\n");
                 }
 
+                // Update max queue size after processing
+                maxQueueSize = Math.max(maxQueueSize, arrivalBuffer.size());
+                logWriter.write("Queue Size: " + arrivalBuffer.size() + "\n");
+
+                // Show queue state with distribution statistics
+                if (!arrivalBuffer.isEmpty()) {
+                    System.out.println("\n=== Queue State After New Arrivals ===");
+                    arrivalBuffer.visualizeQueue();
+                    
+                    // Show distribution statistics
+                    System.out.println("\n[Queue Statistics]");
+                    System.out.println("+" + "-".repeat(40) + "+");
+                    System.out.println("| Priority Distribution:                    |");
+                    System.out.printf("| High: %-3d | Medium: %-3d | Low: %-3d |\n",
+                        highPriorityCount, mediumPriorityCount, lowPriorityCount);
+                    System.out.println("| Size Distribution:                        |");
+                    System.out.printf("| Small: %-3d | Medium: %-3d | Large: %-3d |\n",
+                        smallSizeCount, mediumSizeCount, largeSizeCount);
+                    System.out.println("+" + "-".repeat(40) + "+");
+                }
+
                 // Show queue state after processing
                 if (sortedCount > 0) {
                     System.out.println("\n=== Queue State After Processing ===");
@@ -215,6 +220,7 @@ public class Main {
                         parcelTracker.incrementReturnCount(nextParcel.getParcelID());
                         logWriter.write(String.format("Returned: %s misrouted -> Pushed to ReturnStack\n", nextParcel.getParcelID()));
                     } else {
+                        // Remove the parcel and update status - removeParcel handles the counting
                         destinationSorter.removeParcel(activeCity, nextParcel.getParcelID());
                         parcelTracker.updateStatus(nextParcel.getParcelID(), ParcelTracker.ParcelStatus.DISPATCHED);
                         logWriter.write(String.format("Dispatched: %s from BST to %s -> Success\n", nextParcel.getParcelID(), activeCity));
@@ -265,22 +271,32 @@ public class Main {
             report.write("1. Simulation Overview\n");
             report.write("------------------------\n");
             report.write("Total Ticks Executed: " + tick + "\n");
-            report.write("Number of Parcels Generated: " + ParcelGenerator.getTotalGeneratedCount() + "\n\n");
+            report.write("Total Parcels Generated: " + ParcelGenerator.getTotalGeneratedCount() + "\n");
+            report.write("Successfully Enqueued Parcels: " + ParcelGenerator.getSuccessfullyEnqueuedCount() + "\n\n");
 
             report.write("2. Parcel Statistics\n");
             report.write("------------------------\n");
-            report.write("Total Dispatched Parcels: " + parcelTracker.countStatus(ParcelTracker.ParcelStatus.DISPATCHED) + "\n");
-            report.write("Total Returned Parcels: " + parcelTracker.countTotalReturns() + "\n");
+            int dispatchedCount = parcelTracker.countStatus(ParcelTracker.ParcelStatus.DISPATCHED);
+            report.write("Total Dispatched Parcels: " + dispatchedCount + "\n");
+            int returnedCount = parcelTracker.countTotalReturns();
+            report.write("Total Returned Parcels: " + returnedCount + "\n");
             int inSystem = parcelTracker.countStatus(ParcelTracker.ParcelStatus.SORTED)
                           + parcelTracker.countStatus(ParcelTracker.ParcelStatus.IN_QUEUE);
             report.write("Parcels Still in Queue/BST/Stack: " + inSystem + "\n\n");
 
             report.write("3. Destination Metrics\n");
             report.write("------------------------\n");
-            for (String city : cityList) {
-                report.write(city + ": " + destinationSorter.totalDeliveredTo(city) + " parcels\n");
+            String[] cities = {"Istanbul", "Ankara", "Izmir", "Bursa", "Antalya"};
+            int totalDispatched = 0;
+            for (String city : cities) {
+                int dispatched = parcelTracker.countCityDispatches(city);
+                totalDispatched += dispatched;
+                report.write(String.format("%s: %d parcels dispatched\n", city, dispatched));
             }
-            report.write("Most Frequently Targeted Destination: " + destinationSorter.getCityWithMaxParcels() + "\n\n");
+            report.write(String.format("Total Dispatched: %d\n", totalDispatched));
+            report.write(String.format("Verification: Sum of city dispatches = %d\n", totalDispatched));
+            report.write("Most Frequently Targeted Destination: " + 
+                parcelTracker.getCityWithMaxDispatches() + "\n\n");
 
             report.write("4. Timing and Delay Metrics\n");
             report.write("-----------------------------\n");
@@ -291,6 +307,8 @@ public class Main {
             report.write("Maximum Queue Size Observed: " + maxQueueSize + "\n");
             report.write("Maximum Stack Size Observed: " + maxStackSize + "\n");
             report.write("Final Height of BST: " + destinationSorter.getHeight() + "\n");
+            report.write("Total Parcels in BST: " + destinationSorter.getTotalParcels() + "\n");
+            report.write("BST Balance Check: " + (destinationSorter.verifyBalance() ? "Balanced" : "Unbalanced") + "\n");
             report.write("Hash Table Load Factor: " + parcelTracker.getLoadFactor() + "\n");
 
             report.close();

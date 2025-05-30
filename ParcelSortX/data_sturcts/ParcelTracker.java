@@ -4,14 +4,15 @@ import java.util.logging.*;
 public class ParcelTracker {
     private static final Logger logger = Logger.getLogger(ParcelTracker.class.getName());
     private static final int INITIAL_CAPACITY = 30;  // Based on QUEUE_CAPACITY from config.txt
-    private static final double LOAD_FACTOR_THRESHOLD = 0.75;  // As specified in requirements
+    private static final double LOAD_FACTOR_THRESHOLD = 0.75; 
 
     public enum ParcelStatus {
         IN_QUEUE,
         SORTED,
         DISPATCHED,
         RETURNED
-    }  
+    }
+
     // Node
     private class ParcelNode {
         String parcelID;
@@ -44,6 +45,11 @@ public class ParcelTracker {
     private int capacity;
     
     private int currentTick = 0;  // Add current tick tracking
+    private int totalGenerated = 0;  // Track total parcels generated
+    private int totalEnqueued = 0;   // Track successfully enqueued parcels
+    private int totalDispatched = 0; // Track total dispatched parcels
+    private int totalReturned = 0;   // Track total returned parcels
+    private int[] cityDispatches = new int[5]; // Track dispatches per city
 
     public ParcelTracker() {
         this.capacity = INITIAL_CAPACITY;
@@ -62,7 +68,6 @@ public class ParcelTracker {
   
     public void insert(String parcelID, ParcelStatus status, int arrivalTick, 
                       String destinationCity, int priority, String size) {
-        //edge cases::
         try {
             // Validate input
             if (parcelID == null || parcelID.trim().isEmpty()) {
@@ -92,6 +97,11 @@ public class ParcelTracker {
             newNode.next = table[index];
             table[index] = newNode;
             this.size++;
+            totalGenerated++;  // Increment total generated
+            
+            if (status == ParcelStatus.IN_QUEUE || status == ParcelStatus.SORTED) {
+                totalEnqueued++;  // Only count as enqueued if in queue or sorted
+            }
             
             logger.info(String.format("[Insert] Parcel %s tracked with status %s", 
                 parcelID, status));
@@ -110,6 +120,34 @@ public class ParcelTracker {
             }
             
             ParcelStatus oldStatus = node.status;
+            
+            // Update counts based on status change
+            if (oldStatus == ParcelStatus.DISPATCHED && newStatus != ParcelStatus.DISPATCHED) {
+                totalDispatched--;
+                // Decrement city dispatch count
+                for (int i = 0; i < 5; i++) {
+                    if (node.destinationCity.equals(getCityName(i))) {
+                        cityDispatches[i]--;
+                        break;
+                    }
+                }
+            } else if (oldStatus != ParcelStatus.DISPATCHED && newStatus == ParcelStatus.DISPATCHED) {
+                totalDispatched++;
+                // Increment city dispatch count
+                for (int i = 0; i < 5; i++) {
+                    if (node.destinationCity.equals(getCityName(i))) {
+                        cityDispatches[i]++;
+                        break;
+                    }
+                }
+            }
+            
+            if (oldStatus == ParcelStatus.RETURNED && newStatus != ParcelStatus.RETURNED) {
+                totalReturned--;
+            } else if (oldStatus != ParcelStatus.RETURNED && newStatus == ParcelStatus.RETURNED) {
+                totalReturned++;
+            }
+            
             node.status = newStatus;
             
             // Update dispatch tick if parcel is being dispatched
@@ -184,7 +222,7 @@ public class ParcelTracker {
             while (node != null) {
                 if (node.status == ParcelStatus.DISPATCHED && node.dispatchTick >= 0) {
                     int delay = node.dispatchTick - node.arrivalTick;
-                    if (delay >= 0) {  // Only count valid delays
+                    if (delay >= 0 && delay <= currentTick) {
                         totalDelay += delay;
                         processed++;
                         if (delay > maxDelay) {
@@ -256,72 +294,30 @@ public class ParcelTracker {
    
     public String getStatistics() {
         StringBuilder stats = new StringBuilder();
-        stats.append("\n===+ ParcelTracker Statistics +===\n");
         
-        stats.append(String.format("Total Parcels: %d\n", size));
-        stats.append(String.format("Table Capacity: %d\n", capacity));
-        stats.append(String.format("Load Factor: %.2f\n", (double) size / capacity));
-
-        int[] statusCounts = new int[ParcelStatus.values().length];
-        int totalReturns = countTotalReturns();
-        int maxReturns = 0;
-        String mostReturnedParcel = "None";
-        int parcelsReturnedMoreThanOnce = 0;
-
-        long totalProcessingTime = 0;
-        int processedParcels = 0;
-        int maxDelay = 0;
-        String longestDelayParcel = "None";
-
-        for (ParcelNode node : table) {
-            while (node != null) {
-                statusCounts[node.status.ordinal()]++;
-                totalReturns += node.returnCount;
-                if (node.returnCount > maxReturns) {
-                    maxReturns = node.returnCount;
-                    mostReturnedParcel = node.parcelID;
-                }
-                if (node.returnCount > 1) {
-                    parcelsReturnedMoreThanOnce++;
-                }
-
-                if (node.status == ParcelStatus.DISPATCHED && node.dispatchTick != -1) {
-                    int processingTime = node.dispatchTick - node.arrivalTick;
-                    totalProcessingTime += processingTime;
-                    processedParcels++;
-                    
-                    if (processingTime > maxDelay) {
-                        maxDelay = processingTime;
-                        longestDelayParcel = node.parcelID;
-                    }
-                }
-                
-                node = node.next;
-            }
-        }
-
-        stats.append("\nStatus Breakdown:\n");
-        for (ParcelStatus status : ParcelStatus.values()) {
-            stats.append(String.format("  %s: %d\n", status, statusCounts[status.ordinal()]));
-        }
-        int parcelsInSystem = statusCounts[ParcelStatus.IN_QUEUE.ordinal()] + 
-                            statusCounts[ParcelStatus.SORTED.ordinal()];
-        stats.append(String.format("\nParcels Still in System: %d\n", parcelsInSystem));
+        // Report statistics
+        stats.append("\n=== Parcel Statistics ===\n");
+        stats.append(String.format("Total Parcels Generated: %d\n", totalGenerated));
+        stats.append(String.format("Successfully Enqueued Parcels: %d\n", totalEnqueued));
+        stats.append(String.format("Total Dispatched Parcels: %d\n", totalDispatched));
+        stats.append(String.format("Total Returned Parcels: %d\n", totalReturned));
+        stats.append(String.format("Parcels Still in System: %d\n", countParcelsInSystem()));
         
-        stats.append("\nReturn Statistics:\n");
-        stats.append(String.format("  Total Returns: %d\n", totalReturns));
-        stats.append(String.format("  Most Returns: %d (Parcel %s)\n", maxReturns, mostReturnedParcel));
-        stats.append(String.format("  Parcels Returned More Than Once: %d\n", parcelsReturnedMoreThanOnce));
-        stats.append("\nTiming Statistics:\n");
-        if (processedParcels > 0) {
-            double avgProcessingTime = (double) totalProcessingTime / processedParcels;
-            stats.append(String.format("  Average Processing Time: %.2f ticks\n", avgProcessingTime));
-            stats.append(String.format("  Longest Delay: %d ticks (Parcel %s)\n", maxDelay, longestDelayParcel));
-        } else {
-            stats.append("  No parcels have been processed yet\n");
+        // Report city dispatches
+        stats.append("\n=== City Dispatch Counts ===\n");
+        int cityTotal = 0;
+        for (int i = 0; i < 5; i++) {
+            stats.append(String.format("%s: %d\n", getCityName(i), cityDispatches[i]));
+            cityTotal += cityDispatches[i];
+        }
+        stats.append(String.format("Total City Dispatches: %d\n", cityTotal));
+        
+        // Verify counts match
+        if (cityTotal != totalDispatched) {
+            logger.warning(String.format("City dispatch mismatch: %d != %d",
+                cityTotal, totalDispatched));
         }
         
-        stats.append("===+ End Statistics +===\n");
         return stats.toString();
     }
 
@@ -329,10 +325,52 @@ public class ParcelTracker {
         int totalReturns = 0;
         for (ParcelNode node : table) {
             while (node != null) {
-                totalReturns += node.returnCount;
+                if (node.status == ParcelStatus.RETURNED) {
+                    totalReturns++;
+                }
                 node = node.next;
             }
         }
         return totalReturns;
+    }
+
+    public int countParcelsInSystem() {
+        int inSystem = 0;
+        for (ParcelNode node : table) {
+            while (node != null) {
+                if (node.status == ParcelStatus.IN_QUEUE || 
+                    node.status == ParcelStatus.SORTED) {
+                    inSystem++;
+                }
+                node = node.next;
+            }
+        }
+        return inSystem;
+    }
+
+    private String getCityName(int index) {
+        String[] cities = {"Istanbul", "Ankara", "Izmir", "Bursa", "Antalya"};
+        return cities[index];
+    }
+
+    public int countCityDispatches(String city) {
+        for (int i = 0; i < 5; i++) {
+            if (getCityName(i).equals(city)) {
+                return cityDispatches[i];
+            }
+        }
+        return 0;
+    }
+
+    public String getCityWithMaxDispatches() {
+        int maxDispatches = -1;
+        String maxCity = "None";
+        for (int i = 0; i < 5; i++) {
+            if (cityDispatches[i] > maxDispatches) {
+                maxDispatches = cityDispatches[i];
+                maxCity = getCityName(i);
+            }
+        }
+        return maxCity;
     }
 }

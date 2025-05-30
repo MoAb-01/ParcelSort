@@ -5,6 +5,7 @@ import java.util.Random;
 public class ParcelGenerator {
 
     private static int parcelCounter = 0; // Benzersiz ID üretimi
+    private static int successfullyEnqueuedCount = 0; // Track only successfully enqueued parcels
     private static final Random random = new Random();
 
     private final String[] cityList;
@@ -38,8 +39,17 @@ public class ParcelGenerator {
         return parcels;
     }
 
-    // Toplam oluşturulan parcel sayısını verir (test amaçlı)
+    // Track successful enqueues
+    public static void incrementSuccessfullyEnqueuedCount() {
+        successfullyEnqueuedCount++;
+    }
+
+    // Return total generated, not just enqueued
     public static int getTotalGeneratedCount() {
         return parcelCounter;
+    }
+
+    public static int getSuccessfullyEnqueuedCount() {
+        return successfullyEnqueuedCount;
     }
 }

@@ -8,11 +8,12 @@
 
 package data_sturcts;
 
-import java.util.*;
+import java.util.logging.Logger;
 import main.Parcel;
-import java.util.Iterator;
+
 
 public class DestinationSorter {
+    private static final Logger logger = Logger.getLogger(DestinationSorter.class.getName());
 
     // Custom Queue implementation for parcels
     private class ParcelQueue {
@@ -51,8 +52,8 @@ public class DestinationSorter {
             return isEmpty() ? null : front.data;
         }
         
-        public Parcel poll() {
-            if (isEmpty()) return null;
+        public void poll() {
+            if (isEmpty()) return;
             
             Parcel parcel = front.data;
             front = front.next;
@@ -61,8 +62,7 @@ public class DestinationSorter {
             if (front == null) {
                 rear = null;
             }
-            
-            return parcel;
+
         }
         
         public boolean isEmpty() {
@@ -93,15 +93,13 @@ public class DestinationSorter {
 
     private class Node {
         String cityName;
-        ParcelQueue parcelQueue;  // Using our custom queue instead of LinkedList
+        ParcelQueue parcelQueue; 
         Node left, right;
-        int dispatchedCount;
         int height; // AVL height
 
         public Node(String cityName) {
             this.cityName = cityName;
             this.parcelQueue = new ParcelQueue();
-            this.dispatchedCount = 0;
             this.height = 1;
         }
     }
@@ -121,14 +119,17 @@ public class DestinationSorter {
 
 
     private int getBalance(Node node) {
-        return node == null ? 0 : getHeight(node.left) - getHeight(node.right);
+        if (node == null) return 0;
+        return getHeight(node.left) - getHeight(node.right);
     }
 
     // AVL right rotation::
     private Node rightRotate(Node y) {
+        logger.info(String.format("Performing right rotation at node: %s", y.cityName));
         Node x = y.left;
         Node T2 = x.right;
 
+        // Perform rotation
         x.right = y;
         y.left = T2;
 
@@ -142,12 +143,18 @@ public class DestinationSorter {
     // AVL left rotate:: 
 
     private Node leftRotate(Node x) {
+        logger.info(String.format("Performing left rotation at node: %s", x.cityName));
         Node y = x.right;
         Node T2 = y.left;
+
+        // Perform rotation
         y.left = x;
         x.right = T2;
+
+        // Update heights
         x.height = Math.max(getHeight(x.left), getHeight(x.right)) + 1;
         y.height = Math.max(getHeight(y.left), getHeight(y.right)) + 1;
+
         return y;
     }
 
@@ -173,20 +180,33 @@ public class DestinationSorter {
         } else {
             current.right = insertRecursive(current.right, parcel);
         }
-        current.height = Math.max(getHeight(current.left), getHeight(current.right)) + 1;
+
+        // Update height of current node
+        current.height = 1 + Math.max(getHeight(current.left), getHeight(current.right));
+
+        // Get balance factor
         int balance = getBalance(current);
+
+        // Left Left Case
         if (balance > 1 && city.compareTo(current.left.cityName) < 0)
             return rightRotate(current);
+
+        // Right Right Case
         if (balance < -1 && city.compareTo(current.right.cityName) > 0)
             return leftRotate(current);
+
+        // Left Right Case
         if (balance > 1 && city.compareTo(current.left.cityName) > 0) {
             current.left = leftRotate(current.left);
             return rightRotate(current);
         }
+
+        // Right Left Case
         if (balance < -1 && city.compareTo(current.right.cityName) < 0) {
             current.right = rightRotate(current.right);
             return leftRotate(current);
         }
+
         return current;
     }
 
@@ -204,30 +224,46 @@ public class DestinationSorter {
             Parcel first = node.parcelQueue.peek();
             if (first.getParcelID().equals(parcelID)) {
                 node.parcelQueue.poll();
-                node.dispatchedCount++;
+                logger.info(String.format("Parcel %s removed from %s",
+                    parcelID, city));
             }
         }
     }
 
     public int countCityParcels(String city) {
-        if (city == null) return 0;
         Node node = findCityNode(root, city);
-        if (node == null) return 0;
-        
-        // Only count parcels that are still in the system (not dispatched)
-        int count = 0;
-        Parcel[] parcels = node.parcelQueue.getAllParcels();
-        for (Parcel parcel : parcels) {
-            if (parcel.getStatus() != Parcel.Status.Dispatched) {
-                count++;
-            }
-        }
-        return count;
+        return node != null ? node.parcelQueue.size() : 0;
     }
 
+    public int getDispatchedCount(String city) {
+        // This should be called from ParcelTracker instead
+        logger.warning("getDispatchedCount called directly - use ParcelTracker instead");
+        return 0;
+    }
+
+    public int getTotalDispatched() {
+        // This should be called from ParcelTracker instead
+        logger.warning("getTotalDispatched called directly - use ParcelTracker instead");
+        return 0;
+    }
+
+    public void verifyCounts() {
+        // This should be called from ParcelTracker instead
+        logger.warning("verifyCounts called directly - use ParcelTracker instead");
+    }
+
+    // Remove redundant methods that could cause double-counting
     public int totalDeliveredTo(String city) {
-        Node node = findCityNode(root, city);
-        return node != null ? node.dispatchedCount : 0;
+        return getDispatchedCount(city);  // Use single source of truth
+    }
+
+    public void incrementDispatchedCount(String city) {
+        // Remove this method as it could cause double-counting
+        logger.warning("incrementDispatchedCount called - this method should not be used");
+    }
+
+    public int getUniqueDeliveredCount(String city) {
+        return getDispatchedCount(city);  // Use single source of truth
     }
 
     private Node findCityNode(Node current, String city) {
@@ -244,7 +280,10 @@ public class DestinationSorter {
 
     private int heightRecursive(Node current) {
         if (current == null) return 0;
-        return 1 + Math.max(heightRecursive(current.left), heightRecursive(current.right));
+        return 1 + Math.max(
+            heightRecursive(current.left),
+            heightRecursive(current.right)
+        );
     }
 
     public String getCityWithMaxParcels() {
@@ -254,10 +293,10 @@ public class DestinationSorter {
         int maxCount = -1;
         StringBuilder tiedCities = new StringBuilder();
         
-        // Check each city explicitly using totalDeliveredTo to match report numbers
+        // Check each city explicitly using dispatched count
         String[] cities = {"Istanbul", "Ankara", "Izmir", "Bursa", "Antalya"};
         for (String city : cities) {
-            int count = totalDeliveredTo(city);
+            int count = getDispatchedCount(city);
             if (count > maxCount) {
                 maxCount = count;
                 maxCity = city;
@@ -270,7 +309,6 @@ public class DestinationSorter {
             }
         }
         
-        System.out.println("\nDEBUG: Final result - " + tiedCities + " with " + maxCount + " parcels each");
         return tiedCities.toString();
     }
 
@@ -320,7 +358,6 @@ public class DestinationSorter {
 
         System.out.println("\n=== Detailed View for " + city + " ===");
         System.out.println("Total Parcels: " + node.parcelQueue.size());
-        System.out.println("Dispatched Count: " + node.dispatchedCount);
         
         if (!node.parcelQueue.isEmpty()) {
             System.out.println("\nParcel Queue:");
@@ -386,7 +423,6 @@ public class DestinationSorter {
         // Print current node's queue
         System.out.println("\nCity: " + node.cityName);
         System.out.println("Queue Size: " + node.parcelQueue.size());
-        System.out.println("Dispatched: " + node.dispatchedCount);
         
         if (!node.parcelQueue.isEmpty()) {
             System.out.println("Current Queue:");
@@ -465,8 +501,7 @@ public class DestinationSorter {
         }
         
         System.out.println("+" + "-".repeat(40) + "+");
-        System.out.println("Total in Queue: " + node.parcelQueue.size() + 
-                         " | Dispatched: " + node.dispatchedCount);
+        System.out.println("Total in Queue: " + node.parcelQueue.size());
 
         // Process right subtree
         visualizeQueuesASCIIRecursive(node.right);
@@ -477,5 +512,35 @@ public class DestinationSorter {
      */
     private String padEnd(String str, int length) {
         return String.format("%-" + length + "s", str);
+    }
+
+    // Add method to verify balance factor
+    public boolean verifyBalance() {
+        return verifyBalanceRecursive(root);
+    }
+
+    private boolean verifyBalanceRecursive(Node node) {
+        if (node == null) return true;
+        
+        int balance = getBalance(node);
+        if (Math.abs(balance) > 1) {
+            logger.warning(String.format("Unbalanced node found: %s (balance: %d)", 
+                node.cityName, balance));
+            return false;
+        }
+        
+        return verifyBalanceRecursive(node.left) && verifyBalanceRecursive(node.right);
+    }
+
+    // Add method to get total parcels in BST
+    public int getTotalParcels() {
+        return getTotalParcelsRecursive(root);
+    }
+
+    private int getTotalParcelsRecursive(Node node) {
+        if (node == null) return 0;
+        return node.parcelQueue.size() + 
+               getTotalParcelsRecursive(node.left) + 
+               getTotalParcelsRecursive(node.right);
     }
 }
