@@ -1,5 +1,4 @@
 package data_sturcts;
-
 import java.util.logging.*;
 
 public class TerminalRotator {
@@ -13,7 +12,7 @@ public class TerminalRotator {
         Node(String cityName) {
             this.cityName = cityName;
             this.next = null;
-            this.pendingParcels = 0;
+            this.pendingParcels = 0; //Bonus: variable speed rotation::
         }
     }
     
@@ -79,39 +78,29 @@ public class TerminalRotator {
         logger.warning(String.format("[Error] Terminal %s not found", cityName));
     }
     
-    // Initialize the circular list from city array
     public void initializeFromCityList(String[] cityArray) {
         if (cityArray == null || cityArray.length == 0) {
             logger.severe("[Error] City list cannot be empty");
             throw new IllegalArgumentException("City list cannot be empty");
         }
-        
-        // Validate each city name
+
         for (int i = 0; i < cityArray.length; i++) {
             if (cityArray[i] == null || cityArray[i].trim().isEmpty()) {
                 logger.severe(String.format("[Error] Invalid city name at index %d", i));
                 throw new IllegalArgumentException("Invalid city name at index " + i);
             }
         }
-        
-        // Clear existing list if any
         head = null;
         tail = null;
-        
-        // Create first node
         head = new Node(cityArray[0]);
         tail = head;
-        
-        // Create remaining nodes
         for (int i = 1; i < cityArray.length; i++) {
             Node newNode = new Node(cityArray[i]);
             tail.next = newNode;
             tail = newNode;
         }
         tail.next = head;
- 
         currentActiveTerminal = head;
-        
         logger.info(String.format("[Initialize] Terminal list created with %d cities", cityArray.length));
         printTerminalOrder();
     }
@@ -123,9 +112,7 @@ public class TerminalRotator {
         }
         
         String oldTerminal = currentActiveTerminal.cityName;
-        
         if (variableSpeedEnabled) {
-
             Node highestLoad = currentActiveTerminal;
             Node current = currentActiveTerminal.next;
             while (current != currentActiveTerminal) {
@@ -133,8 +120,7 @@ public class TerminalRotator {
                     highestLoad = current;
                 }
                 current = current.next;
-            }
-            
+            } 
             currentActiveTerminal = highestLoad;
             logger.info(String.format("Terminal Change: %s -> %s (Priority: %d pending parcels)", 
                 oldTerminal, currentActiveTerminal.cityName, currentActiveTerminal.pendingParcels));
@@ -157,7 +143,6 @@ public class TerminalRotator {
             logger.warning("[Status] Terminal list is empty");
             return;
         }
-        
         StringBuilder order = new StringBuilder();
         order.append("Terminal Order: ");
         
@@ -220,7 +205,6 @@ public class TerminalRotator {
         stats.append(String.format("Variable Speed: %s\n", variableSpeedEnabled ? "Enabled" : "Disabled"));
         stats.append(String.format("Total Pending Parcels: %d\n", totalPendingParcels));
         stats.append(String.format("Current Active Terminal: %s\n", getActiveTerminal()));
-           // Print rotation order with pending parcels
         stats.append("\nTerminal Rotation Order:\n");
         if (head != null) {
             Node current = head;
@@ -232,8 +216,7 @@ public class TerminalRotator {
                 current = current.next;
             } while (current != head);
         }
-        
-      
+          
         if (rotationHistoryHead != null) {
             stats.append("\nRotation Timeline:\n");
             RotationEvent current = rotationHistoryHead;

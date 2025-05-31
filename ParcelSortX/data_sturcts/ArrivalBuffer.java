@@ -1,5 +1,5 @@
 package data_sturcts;
-import main.Parcel;
+import main.*;
 
 public class ArrivalBuffer {
     private class Node {
@@ -61,7 +61,11 @@ public class ArrivalBuffer {
 
     // Sıradaki parcel'ı göster ama çıkarma
     public Parcel peek() {
-        return isEmpty() ? null : front.data;
+        if(isEmpty() )
+        {
+            return null;
+        } 
+        return front.data;
     }
 
     public boolean isFull() {
@@ -249,7 +253,10 @@ public class ArrivalBuffer {
             count++;
             current = current.next;
         }
-        
-        return count > 0 ? (double) totalWaitTime / count : 0.0;
+        if (count > 0) {
+            return (double) totalWaitTime / count;
+        } else {
+            return 0.0;
+        }
     }
 }

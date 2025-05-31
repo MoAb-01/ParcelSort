@@ -304,10 +304,6 @@ public class ParcelTracker {
         this.currentTick = tick;
     }
 
-    private int getCurrentTick() {
-        return currentTick;  // Use simulation tick instead of system time
-    }
-   
     public String getStatistics() {
         StringBuilder stats = new StringBuilder();
         
