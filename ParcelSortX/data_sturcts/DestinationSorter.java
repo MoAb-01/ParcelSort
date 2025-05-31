@@ -14,7 +14,6 @@ import main.Parcel;
 
 public class DestinationSorter {
     private static final Logger logger = Logger.getLogger(DestinationSorter.class.getName());
-
     // Custom Queue implementation for parcels
     private class ParcelQueue {
         private class QueueNode {
@@ -25,12 +24,10 @@ public class DestinationSorter {
                 this.data = data;
                 this.next = null;
             }
-        }
-        
+        } 
         private QueueNode front;
         private QueueNode rear;
         private int size;
-        
         public ParcelQueue() {
             this.front = null;
             this.rear = null;
@@ -55,7 +52,6 @@ public class DestinationSorter {
         public void poll() {
             if (isEmpty()) return;
             
-            Parcel parcel = front.data;
             front = front.next;
             size--;
             
@@ -71,11 +67,6 @@ public class DestinationSorter {
         
         public int size() {
             return size;
-        }
-        
-        public void clear() {
-            front = rear = null;
-            size = 0;
         }
 
         // Custom method to get all parcels
@@ -289,7 +280,6 @@ public class DestinationSorter {
     public String getCityWithMaxParcels() {
         if (root == null) return null;
         
-        String maxCity = null;
         int maxCount = -1;
         StringBuilder tiedCities = new StringBuilder();
         
@@ -299,7 +289,6 @@ public class DestinationSorter {
             int count = getDispatchedCount(city);
             if (count > maxCount) {
                 maxCount = count;
-                maxCity = city;
                 tiedCities = new StringBuilder(city);
             } else if (count == maxCount) {
                 if (tiedCities.length() > 0) {
@@ -338,7 +327,7 @@ public class DestinationSorter {
         int barLength = Math.max(1, parcelCount / 2); // Scale the bar length
         System.out.print("[");
         for (int i = 0; i < barLength; i++) {
-            System.out.print("█");
+            System.out.print("x");
         }
         System.out.printf("] %d parcels\n", parcelCount);
 
@@ -507,14 +496,6 @@ public class DestinationSorter {
         visualizeQueuesASCIIRecursive(node.right);
     }
 
-    /**
-     * Helper method to pad strings to a specific length
-     */
-    private String padEnd(String str, int length) {
-        return String.format("%-" + length + "s", str);
-    }
-
-    // Add method to verify balance factor
     public boolean verifyBalance() {
         return verifyBalanceRecursive(root);
     }
@@ -542,5 +523,62 @@ public class DestinationSorter {
         return node.parcelQueue.size() + 
                getTotalParcelsRecursive(node.left) + 
                getTotalParcelsRecursive(node.right);
+    }
+
+    /**
+     * Performs in-order traversal of the BST, visiting cities in alphabetical order
+     */
+    public void inOrderTraversal() {
+        System.out.println("\n=== In-Order Traversal of Cities ===");
+        inOrderTraversalRecursive(root);
+        System.out.println("==================================\n");
+    }
+
+    private void inOrderTraversalRecursive(Node node) {
+        if (node != null) {
+            // Visit left subtree
+            inOrderTraversalRecursive(node.left);
+            
+            // Visit current node
+            System.out.printf("City: %-10s | Parcels: %d\n", 
+                node.cityName, 
+                node.parcelQueue.size());
+            
+            // Visit right subtree
+            inOrderTraversalRecursive(node.right);
+        }
+    }
+
+    /**
+     * Returns the queue of parcels for a specific city
+     * @param city The city to get parcels for
+     * @return The queue of parcels for the city, or null if city not found
+     */
+    public ParcelQueue getCityParcels(String city) {
+        Node node = findCityNode(root, city);
+        return node != null ? node.parcelQueue : null;
+    }
+
+    /**
+     * Visualizes all tree-related information in one method
+     */
+    public void visualizeTreeStatus() {
+        // Visualize Parcel Distribution
+        System.out.println("\n[Parcel Distribution]");
+        System.out.println("+" + "-".repeat(40) + "+");
+        visualizeParcelDistribution();
+        System.out.println("+" + "-".repeat(40) + "+");
+
+        // Visualize System Status
+        System.out.println("\n[System Status]");
+        System.out.println("+" + "-".repeat(40) + "+");
+        visualizeSystemStatus();
+        System.out.println("+" + "-".repeat(40) + "+");
+
+        // Visualize Detailed Queue Status
+        System.out.println("\n[Detailed Queue Status]");
+        System.out.println("+" + "-".repeat(40) + "+");
+        visualizeQueuesASCII();
+        System.out.println("+" + "-".repeat(40) + "+");
     }
 }

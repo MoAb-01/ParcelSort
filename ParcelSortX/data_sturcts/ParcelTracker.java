@@ -1,9 +1,12 @@
 package data_sturcts;
 import java.util.logging.*;
+import java.io.PrintWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 
 public class ParcelTracker {
     private static final Logger logger = Logger.getLogger(ParcelTracker.class.getName());
-    private static final int INITIAL_CAPACITY = 30;  // Based on QUEUE_CAPACITY from config.txt
+    private static final int INITIAL_CAPACITY = 30;  // Based on QUEUE_CAPACITY from config.txt::
     private static final double LOAD_FACTOR_THRESHOLD = 0.75; 
 
     public enum ParcelStatus {
@@ -13,7 +16,7 @@ public class ParcelTracker {
         RETURNED
     }
 
-    // Node
+    // Node::
     private class ParcelNode {
         String parcelID;
         ParcelStatus status;
@@ -21,9 +24,23 @@ public class ParcelTracker {
         int dispatchTick;
         int returnCount;
         String destinationCity;
-        int priority;
-        String size;
+        int priority;  // Added
+        String size;   // Added
         ParcelNode next;  // For chaining
+        
+        // Status history tracking
+        private class StatusChange {
+            ParcelStatus status;
+            int tick;
+            StatusChange next;
+            
+            StatusChange(ParcelStatus status, int tick) {
+                this.status = status;
+                this.tick = tick;
+                this.next = null;
+            }
+        }
+        private StatusChange statusHistory;  // Track status changes
         
         ParcelNode(String parcelID, ParcelStatus status, int arrivalTick, 
                   String destinationCity, int priority, String size) {
@@ -33,9 +50,10 @@ public class ParcelTracker {
             this.dispatchTick = -1;  // Not dispatched yet
             this.returnCount = 0;
             this.destinationCity = destinationCity;
-            this.priority = priority;
-            this.size = size;
+            this.priority = priority;  // Store priority
+            this.size = size;         // Store size
             this.next = null;
+            this.statusHistory = new StatusChange(status, arrivalTick);  // Initialize history
         }
     }
     
@@ -121,10 +139,13 @@ public class ParcelTracker {
             
             ParcelStatus oldStatus = node.status;
             
-            // Update counts based on status change
+            // Update status history
+            ParcelNode.StatusChange newChange = node.new StatusChange(newStatus, currentTick);
+            newChange.next = node.statusHistory;
+            node.statusHistory = newChange;
+            
             if (oldStatus == ParcelStatus.DISPATCHED && newStatus != ParcelStatus.DISPATCHED) {
                 totalDispatched--;
-                // Decrement city dispatch count
                 for (int i = 0; i < 5; i++) {
                     if (node.destinationCity.equals(getCityName(i))) {
                         cityDispatches[i]--;
@@ -133,7 +154,6 @@ public class ParcelTracker {
                 }
             } else if (oldStatus != ParcelStatus.DISPATCHED && newStatus == ParcelStatus.DISPATCHED) {
                 totalDispatched++;
-                // Increment city dispatch count
                 for (int i = 0; i < 5; i++) {
                     if (node.destinationCity.equals(getCityName(i))) {
                         cityDispatches[i]++;
@@ -141,7 +161,6 @@ public class ParcelTracker {
                     }
                 }
             }
-            
             if (oldStatus == ParcelStatus.RETURNED && newStatus != ParcelStatus.RETURNED) {
                 totalReturned--;
             } else if (oldStatus != ParcelStatus.RETURNED && newStatus == ParcelStatus.RETURNED) {
@@ -149,12 +168,9 @@ public class ParcelTracker {
             }
             
             node.status = newStatus;
-            
-            // Update dispatch tick if parcel is being dispatched
             if (newStatus == ParcelStatus.DISPATCHED) {
                 node.dispatchTick = currentTick;
             }
-            
             logger.info(String.format("[Status Update] Parcel %s: %s -> %s", 
                 parcelID, oldStatus, newStatus));
                 
@@ -246,7 +262,7 @@ public class ParcelTracker {
         sb.append(String.format("Parcels Returned More Than Once: %d\n\n", returnedMoreThanOnce));
         return sb.toString();
     }
-    
+    //check if parcel exists avoid duplicate entries::
     public boolean exists(String parcelID) {
         return getNode(parcelID) != null;
     }
@@ -372,5 +388,47 @@ public class ParcelTracker {
             }
         }
         return maxCity;
+    }
+
+    /**
+     * Exports the current state of the ParcelTracker to a file for debugging
+     * @param filename The name of the file to export to
+     */
+    public void exportToFile(String filename) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filename))) {
+            writer.println("=== ParcelTracker State Export ===");
+            writer.println("Total Parcels: " + size);
+            writer.println("Load Factor: " + getLoadFactor());
+            writer.println("\nParcel Details:");
+            writer.println("==============");
+            
+            for (ParcelNode node : table) {
+                while (node != null) {
+                    writer.println("\nParcel ID: " + node.parcelID);
+                    writer.println("Status: " + node.status);
+                    writer.println("Priority: " + node.priority);
+                    writer.println("Size: " + node.size);
+                    writer.println("Destination: " + node.destinationCity);
+                    writer.println("Arrival Tick: " + node.arrivalTick);
+                    writer.println("Dispatch Tick: " + (node.dispatchTick == -1 ? "Not dispatched" : node.dispatchTick));
+                    writer.println("Return Count: " + node.returnCount);
+                    
+                    // Write status history
+                    writer.println("\nStatus History:");
+                    ParcelNode.StatusChange history = node.statusHistory;
+                    while (history != null) {
+                        writer.println("  " + history.status + " at tick " + history.tick);
+                        history = history.next;
+                    }
+                    writer.println("-------------------");
+                    
+                    node = node.next;
+                }
+            }
+            
+            logger.info("Successfully exported ParcelTracker state to " + filename);
+        } catch (IOException e) {
+            logger.severe("Failed to export ParcelTracker state: " + e.getMessage());
+        }
     }
 }

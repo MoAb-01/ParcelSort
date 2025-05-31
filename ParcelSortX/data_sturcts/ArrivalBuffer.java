@@ -38,7 +38,6 @@ public class ArrivalBuffer {
             rear.next = newNode;
             rear = newNode;
         }
-
         size++;
         return true;
     }
@@ -92,7 +91,7 @@ public class ArrivalBuffer {
         System.out.println("null");
     }
 
-    // Simple ASCII visualization of the queue
+   //ASCII visualization of the queue::
     public void visualizeQueue() {
         System.out.println("\n=== Arrival Buffer Queue ===");
         System.out.println("+" + "-".repeat(68) + "+");
@@ -100,7 +99,7 @@ public class ArrivalBuffer {
         if (isEmpty()) {
             System.out.println("|" + String.format("%-68s", " Queue is Empty") + "|");
         } else {
-            // Print header
+            //header::
             System.out.println("| " + String.format("%-8s", "Position") + " | " + 
                              String.format("%-10s", "Parcel ID") + " | " + 
                              String.format("%-8s", "Priority") + " | " + 
@@ -110,7 +109,7 @@ public class ArrivalBuffer {
                              String.format("%-8s", "Status") + " |");
             System.out.println("+" + "-".repeat(68) + "+");
             
-            // Print queue contents
+            // Print queue contents::
             Node current = front;
             int position = 1;
             while (current != null) {
@@ -128,7 +127,6 @@ public class ArrivalBuffer {
                     case Parcel.Status.Returned -> "Returned";
                     default -> "Unknown";
                 };
-                
                 System.out.printf("| %-8d | %-10s | %-8s | %-6s | %-8s | %-8d | %-8s |\n",
                     position++,
                     current.data.getParcelID(),
@@ -146,20 +144,20 @@ public class ArrivalBuffer {
             size, 
             capacity);
         System.out.println("+" + "-".repeat(68) + "+");
-        
-        // Add statistics
+    }
+
+    public void visualizeQueueStatistics() {
         if (!isEmpty()) {
-            System.out.println("\nQueue Statistics:");
+            System.out.println("\n[Queue Statistics]");
             System.out.println("+" + "-".repeat(40) + "+");
             
             // Priority Distribution
-            int highPriority = countPriority(3);
-            int mediumPriority = countPriority(2);
-            int lowPriority = countPriority(1);
+            int highCount = countPriority(3);
+            int mediumCount = countPriority(2);
+            int lowCount = countPriority(1);
             
             System.out.println("| Priority Distribution:                    |");
-            System.out.printf("| High: %-3d | Medium: %-3d | Low: %-3d |\n",
-                highPriority, mediumPriority, lowPriority);
+            System.out.println("| High: " + String.format("%-3d", highCount) + " | Medium: " + String.format("%-3d", mediumCount) + " | Low: " + String.format("%-3d", lowCount) + " |");
             
             // Size Distribution
             int smallCount = countSize("Small");
@@ -167,15 +165,50 @@ public class ArrivalBuffer {
             int largeCount = countSize("Large");
             
             System.out.println("| Size Distribution:                        |");
-            System.out.printf("| Small: %-3d | Medium: %-3d | Large: %-3d |\n",
-                smallCount, mediumSizeCount, largeCount);
+            System.out.println("| Small: " + String.format("%-3d", smallCount) + " | Medium: " + String.format("%-3d", mediumSizeCount) + " | Large: " + String.format("%-3d", largeCount) + " |");
             
             // Average Wait Time
             double avgWaitTime = getAverageWaitTime();
-            System.out.printf("| Average Wait Time: %-20.2f |\n", avgWaitTime);
+            System.out.println("| Average Wait Time: " + String.format("%-20.2f", avgWaitTime) + " |");
             
             System.out.println("+" + "-".repeat(40) + "+");
         }
+    }
+
+    public void visualizeSystemState(DestinationSorter destinationSorter, 
+                                   ReturnStack returnStack, 
+                                   String activeTerminal) {
+        System.out.println("\n=== Current System State ===");
+        
+        // Visualize Arrival Buffer with ASCII
+        visualizeQueue();
+        visualizeQueueStatistics();
+
+        // Visualize Return Stack
+        returnStack.visualizeStack();
+
+        // Visualize Active Terminal
+        System.out.println("\n[Active Terminal]");
+        System.out.println("+" + "-".repeat(40) + "+");
+        System.out.println("|" + String.format("%-38s", " Current: " + activeTerminal) + "|");
+        System.out.println("+" + "-".repeat(40) + "+");
+
+        // Visualize City Distribution
+        System.out.println("\n[City Distribution]");
+        System.out.println("+" + "-".repeat(40) + "+");
+        System.out.println("|" + String.format("%-20s", "City") + "|" + String.format("%-17s", "Parcel Count") + "|");
+        System.out.println("+" + "-".repeat(20) + "+" + "-".repeat(17) + "+");
+        
+        String[] cities = {"Istanbul", "Ankara", "Izmir", "Antalya", "Bursa"};
+        for (String city : cities) {
+            int count = destinationSorter.totalDeliveredTo(city);
+            System.out.println("|" + String.format("%-20s", city) + "|" + String.format("%-17d", count) + "|");
+        }
+        System.out.println("+" + "-".repeat(40) + "+");
+
+        // Let DestinationSorter handle its own visualizations
+        destinationSorter.visualizeTreeStatus();
+        System.out.println("\n=======================================\n");
     }
 
     public int countPriority(int priority) {
@@ -210,8 +243,9 @@ public class ArrivalBuffer {
         int totalWaitTime = 0;
         int count = 0;
         Node current = front;
+        int currentTick = main.Main.getCurrentTick();
         while (current != null) {
-            totalWaitTime += (current.data.getArrivalTick() - current.data.getArrivalTick());
+            totalWaitTime += (currentTick - current.data.getArrivalTick());
             count++;
             current = current.next;
         }
